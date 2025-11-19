@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: content/dom/article-extractor.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: content/dom/article-extractor.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>// Article extraction utilities
+
+// Cache for article elements to avoid repeated queries
+let cachedArticleElements = null;
+let cachedArticleElementsTimestamp = 0;
+const ARTICLE_ELEMENTS_CACHE_TTL = 1000; // 1 second cache
+
+/**
+ * Find article elements in the DOM
+ * @param {boolean} [useCache=true] - Whether to use cached result
+ * @returns {NodeList|Array} Article elements
+ */
+function findArticleElements(useCache = true) {
+  const now = Date.now();
+  
+  // Use cache if valid and enabled
+  if (useCache &amp;&amp; cachedArticleElements &amp;&amp; (now - cachedArticleElementsTimestamp) &lt; ARTICLE_ELEMENTS_CACHE_TTL) {
+    return cachedArticleElements;
+  }
+  
+  // Try primary selector first
+  let articleElements = document.querySelectorAll(CONFIG.selectors.article);
+  
+  // Fallback: if not found, try other common patterns
+  if (articleElements.length === 0) {
+    // Try without specific classes, looking for paragraphs with link and time
+    const allParagraphs = document.querySelectorAll('p');
+    const filtered = [];
+    for (let i = 0; i &lt; allParagraphs.length; i++) {
+      const p = allParagraphs[i];
+      if (p.querySelector(CONFIG.selectors.linkFallback) &amp;&amp; p.querySelector(CONFIG.selectors.time)) {
+        filtered.push(p);
+      }
+    }
+    articleElements = filtered;
+  }
+  
+  // Cache result
+  cachedArticleElements = articleElements;
+  cachedArticleElementsTimestamp = now;
+  
+  return articleElements;
+}
+
+/**
+ * Invalidate article elements cache
+ * @returns {void}
+ */
+function invalidateArticleElementsCache() {
+  cachedArticleElements = null;
+  cachedArticleElementsTimestamp = 0;
+}
+
+/**
+ * Query selector with fallback
+ * @param {Element} element - Element to search in
+ * @param {string} primary - Primary selector
+ * @param {string} fallback - Fallback selector
+ * @returns {Element|null} Found element or null
+ */
+function querySelectorWithFallback(element, primary, fallback) {
+  return element.querySelector(primary) || element.querySelector(fallback);
+}
+
+/**
+ * Extract link from article element
+ * @param {Element} articleElement - Article element
+ * @returns {Element|null} Link element
+ */
+function extractLink(articleElement) {
+  return querySelectorWithFallback(articleElement, CONFIG.selectors.link, CONFIG.selectors.linkFallback);
+}
+
+/**
+ * Extract time element from article element
+ * @param {Element} articleElement - Article element
+ * @returns {Element|null} Time element
+ */
+function extractTime(articleElement) {
+  return querySelectorWithFallback(articleElement, CONFIG.selectors.time, CONFIG.selectors.timeFallback);
+}
+
+/**
+ * Extract date from text using regex fallback
+ * @param {string} text - Text to search
+ * @returns {string|null} Date string or null
+ */
+function extractDateFromText(text) {
+  const dateMatch = text.match(/(\w+\s+\d{1,2},\s+\d{4})/);
+  return dateMatch ? dateMatch[1] : null;
+}
+
+/**
+ * Extract article data from a single article element
+ * @param {Element} articleElement - Article element
+ * @returns {Object|null} Article object or null
+ */
+function extractArticleFromElement(articleElement) {
+  const link = extractLink(articleElement);
+  if (!link) return null;
+
+  const url = link.href || link.getAttribute('href');
+  const title = link.textContent.trim();
+  
+  if (!url || !title) return null;
+  
+  if (!validateUrl(url)) return null;
+
+  const time = extractTime(articleElement);
+  
+  let datetime = null;
+  let dateText = null;
+  
+  if (time) {
+    datetime = time.getAttribute('datetime');
+    dateText = time.textContent.trim();
+  } else {
+    // Fallback: look for date in nearby text
+    const text = articleElement.textContent;
+    dateText = extractDateFromText(text);
+  }
+  
+  return {
+    url: url,
+    title: title,
+    publishedDate: datetime || dateText || '',
+    dateText: dateText || ''
+  };
+}
+
+/**
+ * Extract all articles from the DOM
+ * @returns {Array} Array of article objects
+ */
+function extractArticles() {
+  const articleElements = findArticleElements();
+  // Optimize: Use direct loop instead of Array.from().map().filter() to avoid intermediate arrays
+  const articles = [];
+  const length = articleElements.length;
+  
+  for (let i = 0; i &lt; length; i++) {
+    const article = extractArticleFromElement(articleElements[i]);
+    if (article !== null) {
+      articles.push(article);
+    }
+  }
+  
+  if (articles.length === 0) {
+    Logger.warn('No articles found. The site HTML may have changed.');
+  }
+  
+  return articles;
+}
+
+/**
+ * Check if current page is the main page (with article list)
+ * @returns {boolean} True if main page
+ */
+function isMainPage() {
+  const articleElements = findArticleElements();
+  return articleElements.length > 0;
+}
+
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="PageState.html">PageState</a></li></ul><h3>Global</h3><ul><li><a href="global.html#applyFilter">applyFilter</a></li><li><a href="global.html#attachCheckboxListeners">attachCheckboxListeners</a></li><li><a href="global.html#attachTooltipListeners">attachTooltipListeners</a></li><li><a href="global.html#createCheckbox">createCheckbox</a></li><li><a href="global.html#createExportData">createExportData</a></li><li><a href="global.html#createFilterButton">createFilterButton</a></li><li><a href="global.html#createFilterControl">createFilterControl</a></li><li><a href="global.html#createMutationObserver">createMutationObserver</a></li><li><a href="global.html#createPageStorage">createPageStorage</a></li><li><a href="global.html#createStatusContainer">createStatusContainer</a></li><li><a href="global.html#createStatusIcon">createStatusIcon</a></li><li><a href="global.html#createTooltip">createTooltip</a></li><li><a href="global.html#createTooltipCloseHandler">createTooltipCloseHandler</a></li><li><a href="global.html#createTrackingUI">createTrackingUI</a></li><li><a href="global.html#determineReadStatus">determineReadStatus</a></li><li><a href="global.html#downloadJSON">downloadJSON</a></li><li><a href="global.html#extractArticleFromElement">extractArticleFromElement</a></li><li><a href="global.html#extractArticles">extractArticles</a></li><li><a href="global.html#extractDateFromText">extractDateFromText</a></li><li><a href="global.html#extractLink">extractLink</a></li><li><a href="global.html#extractTime">extractTime</a></li><li><a href="global.html#filterByReadStatus">filterByReadStatus</a></li><li><a href="global.html#findArticleContainer">findArticleContainer</a></li><li><a href="global.html#findArticleElements">findArticleElements</a></li><li><a href="global.html#formatDateFull">formatDateFull</a></li><li><a href="global.html#getArticle">getArticle</a></li><li><a href="global.html#getArticleFromCache">getArticleFromCache</a></li><li><a href="global.html#getArticlesCache">getArticlesCache</a></li><li><a href="global.html#getCurrentDateISO">getCurrentDateISO</a></li><li><a href="global.html#getExistingArticlesMap">getExistingArticlesMap</a></li><li><a href="global.html#getOrCreateArticle">getOrCreateArticle</a></li><li><a href="global.html#getStorageKey">getStorageKey</a></li><li><a href="global.html#handleArticleStatusChange">handleArticleStatusChange</a></li><li><a href="global.html#handleFilterControlPosition">handleFilterControlPosition</a></li><li><a href="global.html#handleTooltipClose">handleTooltipClose</a></li><li><a href="global.html#handleTooltipOpen">handleTooltipOpen</a></li><li><a href="global.html#hasNewArticles">hasNewArticles</a></li><li><a href="global.html#importDataFromFile">importDataFromFile</a></li><li><a href="global.html#injectTrackingUI">injectTrackingUI</a></li><li><a href="global.html#invalidateArticleElementsCache">invalidateArticleElementsCache</a></li><li><a href="global.html#invalidateCache">invalidateCache</a></li><li><a href="global.html#isLethainDomain">isLethainDomain</a></li><li><a href="global.html#isMainPage">isMainPage</a></li><li><a href="global.html#markAsRead">markAsRead</a></li><li><a href="global.html#markAsUnread">markAsUnread</a></li><li><a href="global.html#mergeArticleDataForImport">mergeArticleDataForImport</a></li><li><a href="global.html#mergeArticleState">mergeArticleState</a></li><li><a href="global.html#normalizeUrl">normalizeUrl</a></li><li><a href="global.html#onDOMReady">onDOMReady</a></li><li><a href="global.html#preserveContainerWidth">preserveContainerWidth</a></li><li><a href="global.html#processImportBatch">processImportBatch</a></li><li><a href="global.html#querySelectorWithFallback">querySelectorWithFallback</a></li><li><a href="global.html#scheduleFilterApplication">scheduleFilterApplication</a></li><li><a href="global.html#setResourceManager">setResourceManager</a></li><li><a href="global.html#showAllArticles">showAllArticles</a></li><li><a href="global.html#startObserving">startObserving</a></li><li><a href="global.html#toggleTooltip">toggleTooltip</a></li><li><a href="global.html#updateCacheArticle">updateCacheArticle</a></li><li><a href="global.html#updateLinkStyles">updateLinkStyles</a></li><li><a href="global.html#updateStatusIcon">updateStatusIcon</a></li><li><a href="global.html#updateUIAfterStatusChange">updateUIAfterStatusChange</a></li><li><a href="global.html#validateArticle">validateArticle</a></li><li><a href="global.html#validateArticleStructure">validateArticleStructure</a></li><li><a href="global.html#validateImportData">validateImportData</a></li><li><a href="global.html#validateUrl">validateUrl</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Thu Nov 20 2025 11:45:27 GMT-0300 (Brasilia Standard Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

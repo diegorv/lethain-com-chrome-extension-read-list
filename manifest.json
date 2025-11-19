@@ -1,0 +1,54 @@
+{
+  "manifest_version": 3,
+  "name": "Lethain Article Tracker",
+  "version": "1.0.0",
+  "description": "Tracks articles from lethain.com and allows marking them as read/unread",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://lethain.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://lethain.com/*"],
+      "js": [
+        "src/shared/config.js",
+        "src/shared/utils/logger.js",
+        "src/shared/utils/date-utils.js",
+        "src/shared/utils/url-utils.js",
+        "src/shared/utils/article-utils.js",
+        "src/shared/utils/storage.js",
+        "src/content/utils/resource-manager.js",
+        "src/content/state/page-state.js",
+        "src/content/dom/article-extractor.js",
+        "src/content/data/article-cache.js",
+        "src/content/ui/tracking-ui.js",
+        "src/content/ui/filter-manager.js",
+        "src/content/dom/ui-injector.js",
+        "src/content/dom/mutation-handler.js",
+        "src/content/dom/content-script.js",
+        "src/content/dom/page-injector.js"
+      ],
+      "css": ["assets/css/page-injector.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "src/background/service-worker.js"
+  },
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "assets/icons/icon16.png",
+      "48": "assets/icons/icon48.png",
+      "128": "assets/icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "assets/icons/icon16.png",
+    "48": "assets/icons/icon48.png",
+    "128": "assets/icons/icon128.png"
+  }
+}
+

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: popup/export-import.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: popup/export-import.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>// Data manipulation utilities (export, import, merge)
+// Note: mergeArticleDataForImport is now in shared/utils/article-utils.js
+
+/**
+ * Process import batch - validates, merges, and categorizes articles
+ * 
+ * Import logic:
+ * - Only imports articles marked as read (isRead=true)
+ * - For existing articles: keeps the most recent readDate
+ * - For new articles: imports them if they are marked as read
+ * - Invalid articles are skipped
+ * 
+ * @param {Object} importData - Import data object with structure: { articles: Array&lt;Object> }
+ * @returns {Promise&lt;Object>} Result object with:
+ *   - articlesToSave: Array&lt;Object> - Articles to save to storage
+ *   - imported: number - Count of new articles imported
+ *   - updated: number - Count of existing articles updated
+ *   - skipped: number - Count of articles skipped (invalid or not read)
+ * @throws {Error} If processing fails
+ */
+async function processImportBatch(importData) {
+  // Runtime type validation
+  if (!importData || typeof importData !== 'object') {
+    throw new Error('processImportBatch: importData must be an object');
+  }
+  
+  if (!Array.isArray(importData.articles)) {
+    throw new Error('processImportBatch: importData.articles must be an array');
+  }
+
+  // Filter valid articles (must have valid structure and URL)
+  const validArticles = importData.articles.filter(article => 
+    validateArticle(article) &amp;&amp; validateUrl(article.url)
+  );
+
+  // Process all articles in parallel for better performance
+  const results = await Promise.all(
+    validArticles.map(async (article) => {
+      const existing = await Storage.getArticle(article.url);
+      
+      if (existing) {
+        // Merge with existing article (keeps most recent readDate)
+        const merged = mergeArticleDataForImport(existing, article);
+        if (merged) {
+          return { type: 'updated', article: merged };
+        }
+        // Skip if merge returns null (existing readDate is more recent)
+        return { type: 'skipped', article: null };
+      } else {
+        // New article - only import if marked as read
+        if (!article.isRead) {
+          return { type: 'skipped', article: null };
+        }
+        
+        return {
+          type: 'imported',
+          article: {
+            url: article.url,
+            title: article.title || '',
+            publishedDate: article.publishedDate || '',
+            dateText: article.dateText || article.publishedDate || '',
+            isRead: true,
+            readDate: article.readDate || null
+          }
+        };
+      }
+    })
+  );
+
+  // Extract articles to save (exclude skipped)
+  const articlesToSave = results
+    .filter(r => r.type !== 'skipped')
+    .map(r => r.article);
+
+  // Count results by type
+  const imported = results.filter(r => r.type === 'imported').length;
+  const updated = results.filter(r => r.type === 'updated').length;
+  // Skipped = invalid articles + articles skipped during merge
+  const skipped = importData.articles.length - validArticles.length + 
+                  results.filter(r => r.type === 'skipped').length;
+
+  return { articlesToSave, imported, updated, skipped };
+}
+
+/**
+ * Export articles data
+ * @param {Array} articles - Articles array
+ * @returns {Object} Export data object
+ */
+function createExportData(articles) {
+  return {
+    version: CONFIG.export.version,
+    exportDate: getCurrentDateISO(),
+    totalArticles: articles.length,
+    articles: articles
+  };
+}
+
+/**
+ * Download data as JSON file
+ * @param {Object} data - Data to export
+ * @param {string} filename - Filename for download
+ * @returns {void}
+ */
+function downloadJSON(data, filename) {
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Import data from JSON file
+ * 
+ * Process:
+ * 1. Read file as text
+ * 2. Parse JSON
+ * 3. Validate structure
+ * 4. Process and merge articles
+ * 5. Save to storage
+ * 
+ * @param {File} file - JSON file to import (must have .json extension)
+ * @returns {Promise&lt;Object>} Import result with:
+ *   - imported: number - Count of new articles imported
+ *   - updated: number - Count of existing articles updated
+ *   - skipped: number - Count of articles skipped
+ * @throws {Error} If file reading, parsing, validation, or processing fails
+ */
+async function importDataFromFile(file) {
+  // Runtime type validation
+  if (!(file instanceof File)) {
+    throw new Error('importDataFromFile: file must be a File object');
+  }
+
+  // Read file content
+  let text;
+  try {
+    text = await file.text();
+  } catch (error) {
+    throw new Error(`Failed to read file: ${error.message}`);
+  }
+
+  // Parse JSON with error handling
+  let importData;
+  try {
+    importData = JSON.parse(text);
+  } catch (error) {
+    throw new Error(`Invalid JSON format: ${error.message}`);
+  }
+
+  // Validate import data structure
+  const validation = validateImportData(importData);
+  if (!validation.valid) {
+    throw new Error(validation.error || 'Invalid import data');
+  }
+
+  // Process import batch
+  const { articlesToSave, imported, updated, skipped } = await processImportBatch(importData);
+
+  // Save articles to storage if any
+  if (articlesToSave.length > 0) {
+    await Storage.saveArticles(articlesToSave);
+  }
+
+  return { imported, updated, skipped };
+}
+
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="PageState.html">PageState</a></li></ul><h3>Global</h3><ul><li><a href="global.html#applyFilter">applyFilter</a></li><li><a href="global.html#attachCheckboxListeners">attachCheckboxListeners</a></li><li><a href="global.html#attachTooltipListeners">attachTooltipListeners</a></li><li><a href="global.html#createCheckbox">createCheckbox</a></li><li><a href="global.html#createExportData">createExportData</a></li><li><a href="global.html#createFilterButton">createFilterButton</a></li><li><a href="global.html#createFilterControl">createFilterControl</a></li><li><a href="global.html#createMutationObserver">createMutationObserver</a></li><li><a href="global.html#createPageStorage">createPageStorage</a></li><li><a href="global.html#createStatusContainer">createStatusContainer</a></li><li><a href="global.html#createStatusIcon">createStatusIcon</a></li><li><a href="global.html#createTooltip">createTooltip</a></li><li><a href="global.html#createTooltipCloseHandler">createTooltipCloseHandler</a></li><li><a href="global.html#createTrackingUI">createTrackingUI</a></li><li><a href="global.html#determineReadStatus">determineReadStatus</a></li><li><a href="global.html#downloadJSON">downloadJSON</a></li><li><a href="global.html#extractArticleFromElement">extractArticleFromElement</a></li><li><a href="global.html#extractArticles">extractArticles</a></li><li><a href="global.html#extractDateFromText">extractDateFromText</a></li><li><a href="global.html#extractLink">extractLink</a></li><li><a href="global.html#extractTime">extractTime</a></li><li><a href="global.html#filterByReadStatus">filterByReadStatus</a></li><li><a href="global.html#findArticleContainer">findArticleContainer</a></li><li><a href="global.html#findArticleElements">findArticleElements</a></li><li><a href="global.html#formatDateFull">formatDateFull</a></li><li><a href="global.html#getArticle">getArticle</a></li><li><a href="global.html#getArticleFromCache">getArticleFromCache</a></li><li><a href="global.html#getArticlesCache">getArticlesCache</a></li><li><a href="global.html#getCurrentDateISO">getCurrentDateISO</a></li><li><a href="global.html#getExistingArticlesMap">getExistingArticlesMap</a></li><li><a href="global.html#getOrCreateArticle">getOrCreateArticle</a></li><li><a href="global.html#getStorageKey">getStorageKey</a></li><li><a href="global.html#handleArticleStatusChange">handleArticleStatusChange</a></li><li><a href="global.html#handleFilterControlPosition">handleFilterControlPosition</a></li><li><a href="global.html#handleTooltipClose">handleTooltipClose</a></li><li><a href="global.html#handleTooltipOpen">handleTooltipOpen</a></li><li><a href="global.html#hasNewArticles">hasNewArticles</a></li><li><a href="global.html#importDataFromFile">importDataFromFile</a></li><li><a href="global.html#injectTrackingUI">injectTrackingUI</a></li><li><a href="global.html#invalidateArticleElementsCache">invalidateArticleElementsCache</a></li><li><a href="global.html#invalidateCache">invalidateCache</a></li><li><a href="global.html#isLethainDomain">isLethainDomain</a></li><li><a href="global.html#isMainPage">isMainPage</a></li><li><a href="global.html#markAsRead">markAsRead</a></li><li><a href="global.html#markAsUnread">markAsUnread</a></li><li><a href="global.html#mergeArticleDataForImport">mergeArticleDataForImport</a></li><li><a href="global.html#mergeArticleState">mergeArticleState</a></li><li><a href="global.html#normalizeUrl">normalizeUrl</a></li><li><a href="global.html#onDOMReady">onDOMReady</a></li><li><a href="global.html#preserveContainerWidth">preserveContainerWidth</a></li><li><a href="global.html#processImportBatch">processImportBatch</a></li><li><a href="global.html#querySelectorWithFallback">querySelectorWithFallback</a></li><li><a href="global.html#scheduleFilterApplication">scheduleFilterApplication</a></li><li><a href="global.html#setResourceManager">setResourceManager</a></li><li><a href="global.html#showAllArticles">showAllArticles</a></li><li><a href="global.html#startObserving">startObserving</a></li><li><a href="global.html#toggleTooltip">toggleTooltip</a></li><li><a href="global.html#updateCacheArticle">updateCacheArticle</a></li><li><a href="global.html#updateLinkStyles">updateLinkStyles</a></li><li><a href="global.html#updateStatusIcon">updateStatusIcon</a></li><li><a href="global.html#updateUIAfterStatusChange">updateUIAfterStatusChange</a></li><li><a href="global.html#validateArticle">validateArticle</a></li><li><a href="global.html#validateArticleStructure">validateArticleStructure</a></li><li><a href="global.html#validateImportData">validateImportData</a></li><li><a href="global.html#validateUrl">validateUrl</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Thu Nov 20 2025 11:45:27 GMT-0300 (Brasilia Standard Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

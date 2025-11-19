@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: content/utils/resource-manager.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: content/utils/resource-manager.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>// Resource management for cleanup (timeouts, listeners, observers)
+
+class ResourceManager {
+  constructor() {
+    this.timeouts = new Set();
+    this.documentListeners = new Map(); // Map&lt;handler, event> for easy removal
+    this.observers = [];
+    this.abortController = new AbortController();
+    this.cleanupInterval = null;
+    this.lastCleanupTime = Date.now();
+  }
+
+  /**
+   * Create a tracked timeout
+   * @param {Function} callback - Callback function
+   * @param {number} delay - Delay in milliseconds
+   * @returns {number} Timeout ID
+   */
+  trackTimeout(callback, delay) {
+    const id = setTimeout(() => {
+      this.timeouts.delete(id);
+      callback();
+    }, delay);
+    this.timeouts.add(id);
+    return id;
+  }
+
+  /**
+   * Clear a specific timeout
+   * @param {number} id - Timeout ID
+   * @returns {void}
+   */
+  clearTimeout(id) {
+    if (id == null || typeof id !== 'number') {
+      Logger.warn('ResourceManager.clearTimeout: Invalid timeout ID provided', id);
+      return;
+    }
+    
+    if (this.timeouts.has(id)) {
+      clearTimeout(id);
+      this.timeouts.delete(id);
+    } else {
+      // Timeout may have already executed and been removed
+      // This is not an error, but we log it for debugging if needed
+      Logger.debug('ResourceManager.clearTimeout: Timeout ID not found in tracked set', id);
+    }
+  }
+
+  /**
+   * Clear all tracked timeouts
+   * @returns {void}
+   */
+  clearAllTimeouts() {
+    this.timeouts.forEach(id => clearTimeout(id));
+    this.timeouts.clear();
+  }
+
+  /**
+   * Track a document event listener
+   * @param {string} event - Event name
+   * @param {Function} handler - Event handler
+   * @returns {void}
+   */
+  trackDocumentListener(event, handler) {
+    document.addEventListener(event, handler);
+    this.documentListeners.set(handler, event);
+  }
+
+  /**
+   * Remove a tracked document listener
+   * @param {Function} handler - Event handler to remove
+   * @returns {void}
+   */
+  removeDocumentListener(handler) {
+    if (this.documentListeners.has(handler)) {
+      const event = this.documentListeners.get(handler);
+      document.removeEventListener(event, handler);
+      this.documentListeners.delete(handler);
+    }
+  }
+
+  /**
+   * Track a MutationObserver
+   * @param {MutationObserver} observer - Observer to track
+   * @returns {void}
+   */
+  trackObserver(observer) {
+    this.observers.push(observer);
+  }
+
+  /**
+   * Get abort signal for event listeners
+   * @returns {AbortSignal} Abort signal
+   */
+  getAbortSignal() {
+    return this.abortController.signal;
+  }
+
+  /**
+   * Periodic cleanup of expired resources
+   * Removes timeouts that have already executed but weren't cleaned up
+   * @returns {void}
+   */
+  periodicCleanup() {
+    const now = Date.now();
+    // Only run periodic cleanup every 30 seconds to avoid overhead
+    if (now - this.lastCleanupTime &lt; 30000) {
+      return;
+    }
+    this.lastCleanupTime = now;
+    
+    // Clean up any timeouts that may have been missed
+    // (timeouts that executed but weren't properly removed from Set)
+    // Note: We can't detect executed timeouts directly, but we can ensure
+    // the Set doesn't grow unbounded by checking its size
+    if (this.timeouts.size > 100) {
+      // If we have more than 100 timeouts, something is wrong
+      // Clear all and log a warning
+      Logger.warn('ResourceManager: Excessive timeouts detected, clearing all');
+      this.clearAllTimeouts();
+    }
+    
+    // Clean up orphaned document listeners if any
+    // (This is a safety measure, normally listeners should be properly removed)
+    if (this.documentListeners.size > 50) {
+      Logger.warn('ResourceManager: Excessive document listeners detected');
+    }
+  }
+
+  /**
+   * Start periodic cleanup
+   * @returns {void}
+   */
+  startPeriodicCleanup() {
+    if (this.cleanupInterval) {
+      return; // Already started
+    }
+    
+    // Run periodic cleanup every 30 seconds
+    this.cleanupInterval = setInterval(() => {
+      this.periodicCleanup();
+    }, 30000);
+  }
+
+  /**
+   * Stop periodic cleanup
+   * @returns {void}
+   */
+  stopPeriodicCleanup() {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+  }
+
+  /**
+   * Cleanup all tracked resources
+   * @returns {void}
+   */
+  cleanup() {
+    // Stop periodic cleanup
+    this.stopPeriodicCleanup();
+    
+    // Disconnect all observers
+    this.observers.forEach(observer => observer.disconnect());
+    this.observers = [];
+
+    // Clear all timeouts
+    this.clearAllTimeouts();
+
+    // Remove all document listeners
+    this.documentListeners.forEach((event, handler) => {
+      document.removeEventListener(event, handler);
+    });
+    this.documentListeners.clear();
+
+    // Abort pending operations
+    this.abortController.abort();
+    
+    // Create new AbortController for potential reuse
+    this.abortController = new AbortController();
+  }
+}
+
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="PageState.html">PageState</a></li></ul><h3>Global</h3><ul><li><a href="global.html#applyFilter">applyFilter</a></li><li><a href="global.html#attachCheckboxListeners">attachCheckboxListeners</a></li><li><a href="global.html#attachTooltipListeners">attachTooltipListeners</a></li><li><a href="global.html#createCheckbox">createCheckbox</a></li><li><a href="global.html#createExportData">createExportData</a></li><li><a href="global.html#createFilterButton">createFilterButton</a></li><li><a href="global.html#createFilterControl">createFilterControl</a></li><li><a href="global.html#createMutationObserver">createMutationObserver</a></li><li><a href="global.html#createPageStorage">createPageStorage</a></li><li><a href="global.html#createStatusContainer">createStatusContainer</a></li><li><a href="global.html#createStatusIcon">createStatusIcon</a></li><li><a href="global.html#createTooltip">createTooltip</a></li><li><a href="global.html#createTooltipCloseHandler">createTooltipCloseHandler</a></li><li><a href="global.html#createTrackingUI">createTrackingUI</a></li><li><a href="global.html#determineReadStatus">determineReadStatus</a></li><li><a href="global.html#downloadJSON">downloadJSON</a></li><li><a href="global.html#extractArticleFromElement">extractArticleFromElement</a></li><li><a href="global.html#extractArticles">extractArticles</a></li><li><a href="global.html#extractDateFromText">extractDateFromText</a></li><li><a href="global.html#extractLink">extractLink</a></li><li><a href="global.html#extractTime">extractTime</a></li><li><a href="global.html#filterByReadStatus">filterByReadStatus</a></li><li><a href="global.html#findArticleContainer">findArticleContainer</a></li><li><a href="global.html#findArticleElements">findArticleElements</a></li><li><a href="global.html#formatDateFull">formatDateFull</a></li><li><a href="global.html#getArticle">getArticle</a></li><li><a href="global.html#getArticleFromCache">getArticleFromCache</a></li><li><a href="global.html#getArticlesCache">getArticlesCache</a></li><li><a href="global.html#getCurrentDateISO">getCurrentDateISO</a></li><li><a href="global.html#getExistingArticlesMap">getExistingArticlesMap</a></li><li><a href="global.html#getOrCreateArticle">getOrCreateArticle</a></li><li><a href="global.html#getStorageKey">getStorageKey</a></li><li><a href="global.html#handleArticleStatusChange">handleArticleStatusChange</a></li><li><a href="global.html#handleFilterControlPosition">handleFilterControlPosition</a></li><li><a href="global.html#handleTooltipClose">handleTooltipClose</a></li><li><a href="global.html#handleTooltipOpen">handleTooltipOpen</a></li><li><a href="global.html#hasNewArticles">hasNewArticles</a></li><li><a href="global.html#importDataFromFile">importDataFromFile</a></li><li><a href="global.html#injectTrackingUI">injectTrackingUI</a></li><li><a href="global.html#invalidateArticleElementsCache">invalidateArticleElementsCache</a></li><li><a href="global.html#invalidateCache">invalidateCache</a></li><li><a href="global.html#isLethainDomain">isLethainDomain</a></li><li><a href="global.html#isMainPage">isMainPage</a></li><li><a href="global.html#markAsRead">markAsRead</a></li><li><a href="global.html#markAsUnread">markAsUnread</a></li><li><a href="global.html#mergeArticleDataForImport">mergeArticleDataForImport</a></li><li><a href="global.html#mergeArticleState">mergeArticleState</a></li><li><a href="global.html#normalizeUrl">normalizeUrl</a></li><li><a href="global.html#onDOMReady">onDOMReady</a></li><li><a href="global.html#preserveContainerWidth">preserveContainerWidth</a></li><li><a href="global.html#processImportBatch">processImportBatch</a></li><li><a href="global.html#querySelectorWithFallback">querySelectorWithFallback</a></li><li><a href="global.html#scheduleFilterApplication">scheduleFilterApplication</a></li><li><a href="global.html#setResourceManager">setResourceManager</a></li><li><a href="global.html#showAllArticles">showAllArticles</a></li><li><a href="global.html#startObserving">startObserving</a></li><li><a href="global.html#toggleTooltip">toggleTooltip</a></li><li><a href="global.html#updateCacheArticle">updateCacheArticle</a></li><li><a href="global.html#updateLinkStyles">updateLinkStyles</a></li><li><a href="global.html#updateStatusIcon">updateStatusIcon</a></li><li><a href="global.html#updateUIAfterStatusChange">updateUIAfterStatusChange</a></li><li><a href="global.html#validateArticle">validateArticle</a></li><li><a href="global.html#validateArticleStructure">validateArticleStructure</a></li><li><a href="global.html#validateImportData">validateImportData</a></li><li><a href="global.html#validateUrl">validateUrl</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Thu Nov 20 2025 11:45:27 GMT-0300 (Brasilia Standard Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

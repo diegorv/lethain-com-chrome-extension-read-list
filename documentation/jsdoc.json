@@ -1,0 +1,21 @@
+{
+  "source": {
+    "include": ["../src"],
+    "includePattern": ".+\\.js$",
+    "exclude": ["node_modules", "documentation"]
+  },
+  "opts": {
+    "destination": "./api",
+    "recurse": true,
+    "template": "node_modules/jsdoc/templates/default"
+  },
+  "plugins": [],
+  "templates": {
+    "cleverLinks": true,
+    "monospaceLinks": true,
+    "default": {
+      "outputSourceFiles": true
+    }
+  }
+}
+

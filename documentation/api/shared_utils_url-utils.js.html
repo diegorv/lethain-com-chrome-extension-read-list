@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: shared/utils/url-utils.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: shared/utils/url-utils.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>// URL utility functions - shared across all contexts
+
+/**
+ * Normalize URL to ensure consistent format (remove trailing slash, ensure absolute URL)
+ * @param {string} url - URL to normalize
+ * @param {string} baseUrl - Base URL (default: https://lethain.com)
+ * @returns {string} Normalized URL
+ */
+function normalizeUrl(url, baseUrl = 'https://lethain.com') {
+  if (!url) return '';
+  
+  try {
+    const urlObj = new URL(url.trim(), baseUrl);
+    let normalized = urlObj.href;
+    
+    // Remove trailing slash (except for root)
+    if (normalized.endsWith('/') &amp;&amp; normalized !== baseUrl + '/') {
+      normalized = normalized.slice(0, -1);
+    }
+    
+    return normalized;
+  } catch (e) {
+    // Fallback to manual normalization if URL constructor fails
+    let normalized = url.trim();
+    if (normalized.endsWith('/') &amp;&amp; normalized !== baseUrl + '/') {
+      normalized = normalized.slice(0, -1);
+    }
+    
+    if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
+      return normalized;
+    }
+    
+    return baseUrl + (normalized.startsWith('/') ? normalized : '/' + normalized);
+  }
+}
+
+/**
+ * Validate article URL
+ * @param {string} url - URL to validate
+ * @returns {boolean} True if valid
+ */
+function validateUrl(url) {
+  return url &amp;&amp; typeof url === 'string' &amp;&amp; url.trim().length > 0;
+}
+
+/**
+ * Check if current page is on lethain.com domain
+ * Only works in contexts with window object (content scripts)
+ * @returns {boolean} True if on lethain.com, false if window is not available
+ */
+function isLethainDomain() {
+  if (typeof window === 'undefined' || !window.location) {
+    return false;
+  }
+  return window.location.hostname === CONFIG.urls.hostname || 
+         window.location.hostname.endsWith('.' + CONFIG.urls.hostname);
+}
+
+/**
+ * Execute callback when DOM is ready
+ * @param {Function} callback - Callback to execute
+ * @returns {void}
+ */
+function onDOMReady(callback) {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', callback);
+  } else {
+    callback();
+  }
+}
+
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="PageState.html">PageState</a></li></ul><h3>Global</h3><ul><li><a href="global.html#applyFilter">applyFilter</a></li><li><a href="global.html#attachCheckboxListeners">attachCheckboxListeners</a></li><li><a href="global.html#attachTooltipListeners">attachTooltipListeners</a></li><li><a href="global.html#createCheckbox">createCheckbox</a></li><li><a href="global.html#createExportData">createExportData</a></li><li><a href="global.html#createFilterButton">createFilterButton</a></li><li><a href="global.html#createFilterControl">createFilterControl</a></li><li><a href="global.html#createMutationObserver">createMutationObserver</a></li><li><a href="global.html#createPageStorage">createPageStorage</a></li><li><a href="global.html#createStatusContainer">createStatusContainer</a></li><li><a href="global.html#createStatusIcon">createStatusIcon</a></li><li><a href="global.html#createTooltip">createTooltip</a></li><li><a href="global.html#createTooltipCloseHandler">createTooltipCloseHandler</a></li><li><a href="global.html#createTrackingUI">createTrackingUI</a></li><li><a href="global.html#determineReadStatus">determineReadStatus</a></li><li><a href="global.html#downloadJSON">downloadJSON</a></li><li><a href="global.html#extractArticleFromElement">extractArticleFromElement</a></li><li><a href="global.html#extractArticles">extractArticles</a></li><li><a href="global.html#extractDateFromText">extractDateFromText</a></li><li><a href="global.html#extractLink">extractLink</a></li><li><a href="global.html#extractTime">extractTime</a></li><li><a href="global.html#filterByReadStatus">filterByReadStatus</a></li><li><a href="global.html#findArticleContainer">findArticleContainer</a></li><li><a href="global.html#findArticleElements">findArticleElements</a></li><li><a href="global.html#formatDateFull">formatDateFull</a></li><li><a href="global.html#getArticle">getArticle</a></li><li><a href="global.html#getArticleFromCache">getArticleFromCache</a></li><li><a href="global.html#getArticlesCache">getArticlesCache</a></li><li><a href="global.html#getCurrentDateISO">getCurrentDateISO</a></li><li><a href="global.html#getExistingArticlesMap">getExistingArticlesMap</a></li><li><a href="global.html#getOrCreateArticle">getOrCreateArticle</a></li><li><a href="global.html#getStorageKey">getStorageKey</a></li><li><a href="global.html#handleArticleStatusChange">handleArticleStatusChange</a></li><li><a href="global.html#handleFilterControlPosition">handleFilterControlPosition</a></li><li><a href="global.html#handleTooltipClose">handleTooltipClose</a></li><li><a href="global.html#handleTooltipOpen">handleTooltipOpen</a></li><li><a href="global.html#hasNewArticles">hasNewArticles</a></li><li><a href="global.html#importDataFromFile">importDataFromFile</a></li><li><a href="global.html#injectTrackingUI">injectTrackingUI</a></li><li><a href="global.html#invalidateArticleElementsCache">invalidateArticleElementsCache</a></li><li><a href="global.html#invalidateCache">invalidateCache</a></li><li><a href="global.html#isLethainDomain">isLethainDomain</a></li><li><a href="global.html#isMainPage">isMainPage</a></li><li><a href="global.html#markAsRead">markAsRead</a></li><li><a href="global.html#markAsUnread">markAsUnread</a></li><li><a href="global.html#mergeArticleDataForImport">mergeArticleDataForImport</a></li><li><a href="global.html#mergeArticleState">mergeArticleState</a></li><li><a href="global.html#normalizeUrl">normalizeUrl</a></li><li><a href="global.html#onDOMReady">onDOMReady</a></li><li><a href="global.html#preserveContainerWidth">preserveContainerWidth</a></li><li><a href="global.html#processImportBatch">processImportBatch</a></li><li><a href="global.html#querySelectorWithFallback">querySelectorWithFallback</a></li><li><a href="global.html#scheduleFilterApplication">scheduleFilterApplication</a></li><li><a href="global.html#setResourceManager">setResourceManager</a></li><li><a href="global.html#showAllArticles">showAllArticles</a></li><li><a href="global.html#startObserving">startObserving</a></li><li><a href="global.html#toggleTooltip">toggleTooltip</a></li><li><a href="global.html#updateCacheArticle">updateCacheArticle</a></li><li><a href="global.html#updateLinkStyles">updateLinkStyles</a></li><li><a href="global.html#updateStatusIcon">updateStatusIcon</a></li><li><a href="global.html#updateUIAfterStatusChange">updateUIAfterStatusChange</a></li><li><a href="global.html#validateArticle">validateArticle</a></li><li><a href="global.html#validateArticleStructure">validateArticleStructure</a></li><li><a href="global.html#validateImportData">validateImportData</a></li><li><a href="global.html#validateUrl">validateUrl</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Thu Nov 20 2025 11:45:27 GMT-0300 (Brasilia Standard Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

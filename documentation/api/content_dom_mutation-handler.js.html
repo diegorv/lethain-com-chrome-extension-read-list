@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: content/dom/mutation-handler.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: content/dom/mutation-handler.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>// Mutation observer handling for dynamic content
+
+/**
+ * Check if mutation contains new article elements
+ * @param {Array&lt;MutationRecord>} mutations - Mutation records
+ * @returns {boolean} True if new articles detected
+ */
+function hasNewArticles(mutations) {
+  for (let i = 0; i &lt; mutations.length; i++) {
+    const mutation = mutations[i];
+    const addedNodes = mutation.addedNodes;
+    
+    for (let j = 0; j &lt; addedNodes.length; j++) {
+      const node = addedNodes[j];
+      if (node.nodeType === 1) { // Element node
+        if (node.matches(CONFIG.selectors.article) || node.querySelector(CONFIG.selectors.article)) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Handle filter control positioning after mutations
+ * @param {Object} pageState - PageState instance
+ * @param {Function} setPageFilter - Function to set page filter
+ * @returns {void}
+ */
+function handleFilterControlPosition(pageState, setPageFilter) {
+  const filterControl = document.getElementById(CONFIG.selectors.filterControl.substring(1));
+  // Use cached findArticleElements to avoid repeated querySelector
+  const articleElements = findArticleElements();
+  const firstArticle = articleElements.length > 0 ? articleElements[0] : null;
+  
+  if (!filterControl &amp;&amp; firstArticle) {
+    // Create filter control if it doesn't exist
+    createFilterControl(pageState.getFilter(), setPageFilter);
+  } else if (filterControl &amp;&amp; firstArticle) {
+    // Reposition filter control if needed
+    const articleContainer = findArticleContainer();
+    if (articleContainer &amp;&amp; !articleContainer.contains(filterControl)) {
+      filterControl.remove();
+      createFilterControl(pageState.getFilter(), setPageFilter);
+    }
+  }
+}
+
+/**
+ * Create mutation observer handler
+ * @param {Object} pageState - PageState instance
+ * @param {ResourceManager} resourceManager - Resource manager instance
+ * @param {Function} injectTrackingUI - Function to inject tracking UI
+ * @param {Function} setPageFilter - Function to set page filter
+ * @returns {MutationObserver} Configured mutation observer
+ */
+function createMutationObserver(pageState, resourceManager, injectTrackingUI, setPageFilter) {
+  let mutationTimeout = null;
+  let filterTimeout = null;
+  
+  const observer = new MutationObserver((mutations) => {
+    if (!hasNewArticles(mutations)) {
+      return;
+    }
+
+    // Clear previous timeouts
+    if (mutationTimeout != null) {
+      resourceManager.clearTimeout(mutationTimeout);
+      mutationTimeout = null;
+    }
+    if (filterTimeout != null) {
+      resourceManager.clearTimeout(filterTimeout);
+      filterTimeout = null;
+    }
+    
+    // Debounce mutation handling
+    mutationTimeout = resourceManager.trackTimeout(() => {
+      // Inject UI for new articles
+      injectTrackingUI();
+      
+      // Handle filter control and apply filter after delay
+      filterTimeout = resourceManager.trackTimeout(() => {
+        handleFilterControlPosition(pageState, setPageFilter);
+        applyFilter(pageState.getFilter(), getArticlesCache).catch((error) => {
+          Logger.warn('Error applying filter:', error);
+        });
+        filterTimeout = null;
+      }, CONFIG.timeouts.mutationFilterDelay);
+      
+      mutationTimeout = null;
+    }, CONFIG.timeouts.mutationDebounce);
+  });
+
+  return observer;
+}
+
+/**
+ * Start observing DOM mutations
+ * @param {MutationObserver} observer - Mutation observer instance
+ * @returns {void}
+ */
+function startObserving(observer) {
+  const articleSection = document.querySelector(CONFIG.selectors.articleSection) || 
+                          document.querySelector(CONFIG.selectors.articleSectionFallback);
+  
+  const targetNode = articleSection || document.body;
+  // Optimize: Only use subtree if absolutely necessary (when target is body)
+  // For article sections, childList is sufficient since articles are direct children
+  const useSubtree = targetNode === document.body;
+  
+  observer.observe(targetNode, {
+    childList: true,
+    subtree: useSubtree
+  });
+}
+
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="PageState.html">PageState</a></li></ul><h3>Global</h3><ul><li><a href="global.html#applyFilter">applyFilter</a></li><li><a href="global.html#attachCheckboxListeners">attachCheckboxListeners</a></li><li><a href="global.html#attachTooltipListeners">attachTooltipListeners</a></li><li><a href="global.html#createCheckbox">createCheckbox</a></li><li><a href="global.html#createExportData">createExportData</a></li><li><a href="global.html#createFilterButton">createFilterButton</a></li><li><a href="global.html#createFilterControl">createFilterControl</a></li><li><a href="global.html#createMutationObserver">createMutationObserver</a></li><li><a href="global.html#createPageStorage">createPageStorage</a></li><li><a href="global.html#createStatusContainer">createStatusContainer</a></li><li><a href="global.html#createStatusIcon">createStatusIcon</a></li><li><a href="global.html#createTooltip">createTooltip</a></li><li><a href="global.html#createTooltipCloseHandler">createTooltipCloseHandler</a></li><li><a href="global.html#createTrackingUI">createTrackingUI</a></li><li><a href="global.html#determineReadStatus">determineReadStatus</a></li><li><a href="global.html#downloadJSON">downloadJSON</a></li><li><a href="global.html#extractArticleFromElement">extractArticleFromElement</a></li><li><a href="global.html#extractArticles">extractArticles</a></li><li><a href="global.html#extractDateFromText">extractDateFromText</a></li><li><a href="global.html#extractLink">extractLink</a></li><li><a href="global.html#extractTime">extractTime</a></li><li><a href="global.html#filterByReadStatus">filterByReadStatus</a></li><li><a href="global.html#findArticleContainer">findArticleContainer</a></li><li><a href="global.html#findArticleElements">findArticleElements</a></li><li><a href="global.html#formatDateFull">formatDateFull</a></li><li><a href="global.html#getArticle">getArticle</a></li><li><a href="global.html#getArticleFromCache">getArticleFromCache</a></li><li><a href="global.html#getArticlesCache">getArticlesCache</a></li><li><a href="global.html#getCurrentDateISO">getCurrentDateISO</a></li><li><a href="global.html#getExistingArticlesMap">getExistingArticlesMap</a></li><li><a href="global.html#getOrCreateArticle">getOrCreateArticle</a></li><li><a href="global.html#getStorageKey">getStorageKey</a></li><li><a href="global.html#handleArticleStatusChange">handleArticleStatusChange</a></li><li><a href="global.html#handleFilterControlPosition">handleFilterControlPosition</a></li><li><a href="global.html#handleTooltipClose">handleTooltipClose</a></li><li><a href="global.html#handleTooltipOpen">handleTooltipOpen</a></li><li><a href="global.html#hasNewArticles">hasNewArticles</a></li><li><a href="global.html#importDataFromFile">importDataFromFile</a></li><li><a href="global.html#injectTrackingUI">injectTrackingUI</a></li><li><a href="global.html#invalidateArticleElementsCache">invalidateArticleElementsCache</a></li><li><a href="global.html#invalidateCache">invalidateCache</a></li><li><a href="global.html#isLethainDomain">isLethainDomain</a></li><li><a href="global.html#isMainPage">isMainPage</a></li><li><a href="global.html#markAsRead">markAsRead</a></li><li><a href="global.html#markAsUnread">markAsUnread</a></li><li><a href="global.html#mergeArticleDataForImport">mergeArticleDataForImport</a></li><li><a href="global.html#mergeArticleState">mergeArticleState</a></li><li><a href="global.html#normalizeUrl">normalizeUrl</a></li><li><a href="global.html#onDOMReady">onDOMReady</a></li><li><a href="global.html#preserveContainerWidth">preserveContainerWidth</a></li><li><a href="global.html#processImportBatch">processImportBatch</a></li><li><a href="global.html#querySelectorWithFallback">querySelectorWithFallback</a></li><li><a href="global.html#scheduleFilterApplication">scheduleFilterApplication</a></li><li><a href="global.html#setResourceManager">setResourceManager</a></li><li><a href="global.html#showAllArticles">showAllArticles</a></li><li><a href="global.html#startObserving">startObserving</a></li><li><a href="global.html#toggleTooltip">toggleTooltip</a></li><li><a href="global.html#updateCacheArticle">updateCacheArticle</a></li><li><a href="global.html#updateLinkStyles">updateLinkStyles</a></li><li><a href="global.html#updateStatusIcon">updateStatusIcon</a></li><li><a href="global.html#updateUIAfterStatusChange">updateUIAfterStatusChange</a></li><li><a href="global.html#validateArticle">validateArticle</a></li><li><a href="global.html#validateArticleStructure">validateArticleStructure</a></li><li><a href="global.html#validateImportData">validateImportData</a></li><li><a href="global.html#validateUrl">validateUrl</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Thu Nov 20 2025 11:45:27 GMT-0300 (Brasilia Standard Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

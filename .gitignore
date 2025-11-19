@@ -1,0 +1,21 @@
+# Arquivos do sistema
+.DS_Store
+*.log
+*.swp
+*.swo
+*~
+
+# IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Build e distribuição
+*.zip
+*.crx
+*.pem
+
+# Temporários
+*.tmp
+*.temp

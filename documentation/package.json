@@ -1,0 +1,12 @@
+{
+  "name": "lethain-reader-docs",
+  "version": "1.0.0",
+  "description": "Documentation extraction tools for Lethain Reader",
+  "scripts": {
+    "extract": "jsdoc -c jsdoc.json"
+  },
+  "devDependencies": {
+    "jsdoc": "^4.0.2"
+  }
+}
+

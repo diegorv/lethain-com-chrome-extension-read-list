@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lethain Article Tracker</title>
+  <link rel="stylesheet" href="../../assets/css/popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Lethain Article Tracker</h1>
+      <p class="subtitle">Manage your reading data</p>
+    </header>
+
+    <div class="stats">
+      <div class="stat-item">
+        <span class="stat-label">Total articles:</span>
+        <span class="stat-value" id="totalArticles">-</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Read:</span>
+        <span class="stat-value" id="readArticles">-</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Unread:</span>
+        <span class="stat-value" id="unreadArticles">-</span>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="exportBtn" class="btn btn-primary">
+        <span class="btn-icon">📥</span>
+        Export Data
+      </button>
+      <button id="importBtn" class="btn btn-secondary">
+        <span class="btn-icon">📤</span>
+        Import Data
+      </button>
+    </div>
+
+    <div id="message" class="message" style="display: none;"></div>
+
+    <input type="file" id="fileInput" accept=".json" style="display: none;">
+
+    <footer>
+      <a href="https://lethain.com" target="_blank" class="link">Open lethain.com</a>
+    </footer>
+  </div>
+
+  <script src="../shared/config.js"></script>
+  <script src="../shared/utils/logger.js"></script>
+  <script src="../shared/utils/date-utils.js"></script>
+  <script src="../shared/utils/url-utils.js"></script>
+  <script src="../shared/utils/article-utils.js"></script>
+  <script src="../shared/utils/storage.js"></script>
+  <script src="validators.js"></script>
+  <script src="export-import.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,7 @@
+node_modules/
+package-lock.json
+yarn.lock
+
+# Keep api/ folder but ignore temporary files
+api/.DS_Store
+
