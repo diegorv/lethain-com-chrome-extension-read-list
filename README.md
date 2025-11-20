@@ -1,13 +1,31 @@
 # Lethain Article Tracker
 
-# NOTICE: PLEASE READ IT
+# NOTICE: PLEASE READ IT ⚠️🚨‼️🚨⚠️
 - Use this Chrome extension at your own risk. I don’t intend to maintain this project for third parties, at least not at this early stage.
 - This is a pet project to make it easier to follow the reading of some blogs I track. For now, it only works for https://lethain.com
-- The idea is to refactor the code by the end of November 2025 so it becomes agnostic to any site I want to add. At the moment, I’m working on adapting it to also work on https://hbr.org
+- The idea is to refactor the code by the end of 2025 so it becomes agnostic to any site I want to add. At the moment, I’m working on adapting it to also work on https://hbr.org
 
 # Description
-
 Chrome extension to track articles from [lethain.com](https://lethain.com/), allowing you to mark them as read/unread and automatically sync new articles.
+
+It manipulates the website to inject some features. Here we have a screenshot showing the basic behavior: turning the website into a TODO/READ list.
+
+It’s worth mentioning that I built this entirely using Cursor AI, without writing a single line of code myself, in just two hours on a holiday — so don’t expect much quality hahaha. That’s not the goal; the goal is for it to be functional :P
+
+At least I used the last remnants of my JavaScript skills from 2019, back when I was coding more actively, to try to keep the performance decent in Chrome and avoid using gigabytes of memory for something simple — unlike many extensions out there.
+
+Oh, and it’s worth noting that this extension only has permissions for specific sites. I did this because I find it absurd how extensions nowadays ask for overly broad permissions on every website without any real need.
+
+**YES, IT IS SIMPLE AND I WILL KEEP IN THIS WAY**
+
+## Current features
+- This extension use `chrome.storage` and don't have a backend system to persist any information
+- Mark and Unmark an Article as read
+- Save the Datetime when I marked as read
+- Filter the Articles directly in the webiste (All | Read | Unread)
+- Export and import a json file with the extension data
+
+<img width="1907" height="849" alt="Screenshot 2025-11-20 at 17 01 48" src="https://github.com/user-attachments/assets/8c330566-ec9a-4d28-a5dc-589628c57989" />
 
 ## Table of Contents
 
