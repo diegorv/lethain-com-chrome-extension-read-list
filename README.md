@@ -1,5 +1,12 @@
 # Lethain Article Tracker
 
+# NOTICE: PLEASE READ IT
+- Use this Chrome extension at your own risk. I don’t intend to maintain this project for third parties, at least not at this early stage.
+- This is a pet project to make it easier to follow the reading of some blogs I track. For now, it only works for https://lethain.com
+- The idea is to refactor the code by the end of November 2025 so it becomes agnostic to any site I want to add. At the moment, I’m working on adapting it to also work on https://hbr.org
+
+# Description
+
 Chrome extension to track articles from [lethain.com](https://lethain.com/), allowing you to mark them as read/unread and automatically sync new articles.
 
 ## Table of Contents
